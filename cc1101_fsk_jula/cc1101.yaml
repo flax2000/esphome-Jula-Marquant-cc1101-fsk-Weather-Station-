@@ -1,0 +1,146 @@
+#made by swe dude
+#used this as starting point https://github.com/dbuezas/esphome-cc1101
+#decoding from: https://github.com/merbanan/rtl_433/blob/master/src/devices/emax.c
+#may or may not decode the following: Emax W6, rebrand Altronics x7063/4, Optex 990040/50/51, Orium 13093/13123, Infactory FWS-1200, Newentor Q9, Otio 810025, Protmex PT3390A, Jula Marquant 014331/32, Weather Station or temperature/humidity sensor
+
+#only tried with Jula Marquant temperature/humidity sensor 
+
+
+
+esphome:
+  name: cc1101
+  platform: ESP8266
+  board: esp12e
+  includes:
+    - cc1101.h
+    - SmartRC-CC1101-Driver-Lib-master/ELECHOUSE_CC1101_SRC_DRV.cpp
+    - SmartRC-CC1101-Driver-Lib-master/ELECHOUSE_CC1101_SRC_DRV.h
+  libraries:
+    - SPI
+    #- "SmartRC-CC1101-Driver-Lib" #adding library diddent work for me so added it manually  above
+
+wifi:
+  networks:
+  - ssid: "xxxxxx"
+    password: "xxxxx"
+  
+logger:
+api:
+ota:
+
+
+
+##if you find a new better value you need to update "initial_value: 125" and ELECHOUSE_cc1101.setChannel(125); in setup (same for the rest below)
+number:
+  - platform: template #channel 127 =433.92mhz channel spacing 25.39kHz
+    name: "channel"
+    optimistic: true
+    min_value: 107
+    max_value: 147
+    step: 1
+    initial_value: 125 
+    mode: slider
+    set_action:
+      then:
+        - lambda: |-  
+            channel_=x;
+
+
+  - platform: template
+    name: "Deviation" #kHz
+    optimistic: true
+    min_value: 0
+    max_value: 100
+    step: 1
+    initial_value: 40 
+    mode: slider
+    set_action:
+      then:
+        - lambda: |-  
+            Deviation_=x;
+
+
+  - platform: template
+    name: "DRate" #kBaud
+    optimistic: true
+    min_value: 10
+    max_value: 11.2
+    step: 0.01
+    initial_value: 10.94 
+    mode: slider
+    set_action:
+      then:
+        - lambda: |-  
+            DRate_=x;
+
+
+  - platform: template
+    name: "Bandwidth" # kHz(RxBW)
+    optimistic: true
+    min_value: 60
+    max_value: 300
+    step: 1
+    initial_value: 250
+    mode: slider
+    set_action:
+      then:
+        - lambda: |-  
+            Bandwidth_=x;
+
+
+
+
+
+sensor:
+  - platform: custom ##make sure you use the spi pins for sck, miso, mosi.
+    lambda: |-
+      auto my_sensor = new CC1101(
+        14, // SCK
+        12, // MISO (G0D1)
+        13, // MOSI
+        4 // CSN
+      );
+      App.register_component(my_sensor);
+      return {my_sensor->fsk_temp_, my_sensor->fsk_hum_, my_sensor->fsk_rssi_, my_sensor->fsk_battery_low_, my_sensor->fsk_avg_rx_};
+    sensors:
+    
+    - name: "fsk temp "
+      unit_of_measurement: °C
+      accuracy_decimals: 2
+      device_class: "temperature"
+      state_class: "measurement"     
+      filters:
+        - median:
+            window_size: 3
+            send_every: 3
+            send_first_at: 3
+            
+    - name: "fsk hum "
+      unit_of_measurement: '%'
+      device_class: "humidity"
+      state_class: "measurement" 
+      accuracy_decimals: 0
+      filters:
+        - median:
+            window_size: 3
+            send_every: 3
+            send_first_at: 3
+            
+    - name: "fsk rssi "
+      unit_of_measurement: 'dBm' 
+      accuracy_decimals: 0
+
+    - name: "fsk battery low"
+      unit_of_measurement: ' ' 
+      accuracy_decimals: 0  
+      
+    - name: "fsk avg rx " #messages/min over 5 min
+      unit_of_measurement: ' ' 
+      accuracy_decimals: 2  
+
+
+
+
+      
+  - platform: uptime
+    name: Uptime Sensor
