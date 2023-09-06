@@ -64,7 +64,7 @@ number:
     name: "DRate" #kBaud
     optimistic: true
     min_value: 10
-    max_value: 11.2
+    max_value: 11.5
     step: 0.01
     initial_value: 10.94 
     mode: slider
